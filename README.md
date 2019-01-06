@@ -1,5 +1,6 @@
 # misc
 
+# https://www.tuicool.com/articles/vyiYJzu
 
 class PointsCompression(object):
   def __init__(self):
