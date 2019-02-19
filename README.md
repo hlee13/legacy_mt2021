@@ -96,3 +96,129 @@ function decompressPoints(s) {
   });
   return result;
 }
+
+def DefaultValueForZero(fval, default_value, kMissingValueRange = 1e-20):
+    if fval > -kMissingValueRange and fval <= kMissingValueRange:
+        return default_value
+    else:
+        return fval
+
+def predict(bst, vec):
+    dump_model = bst.dump_model()
+
+    def dfs(root, node_path, node_value):
+        if "split_feature" in root:
+            node_path.append(root['split_feature'])
+            node_value.append(root['internal_value'])
+            split_idx = root['split_feature']
+
+            default_left = root['default_left']
+
+            goLeft, goRight = False, False
+            val = vec[split_idx]
+
+            if val < -1e-35: # 特征缺失, < 0 表示特征缺失
+                if default_left:
+                    return dfs(root["left_child"], node_path, node_value)
+                else:
+                    return dfs(root["right_child"], node_path, node_value)
+            else:
+                decision_type = root['decision_type']
+                if root['decision_type'] == '==':
+                    val = int(val)
+                    if str(val) in root['threshold'].split('||'):
+                        return dfs(root["left_child"], node_path, node_value)
+                    else:
+                        return dfs(root["right_child"], node_path, node_value)
+                elif root['decision_type'] == '<=':
+                    if val > root['threshold']:
+                        return dfs(root["right_child"], node_path, node_value)
+                    else:
+                        return dfs(root["left_child"], node_path, node_value)
+                else:
+                    raise Exception('UnKnown decision_type %s' %root['decision_type'])
+        else: # leaf node
+            node_value.append(root['leaf_value'])
+            return root['leaf_index'], root['leaf_value']
+
+    num_class = dump_model['num_class']
+    vvv = [0.0] * num_class
+
+    feature_gain_dict = collections.defaultdict(float)
+    for tree in dump_model["tree_info"]:
+        # print tree['tree_index'], tree['shrinkage']
+        node_path = []
+        node_value = []
+        leaf_index, leaf_value = dfs(tree["tree_structure"], node_path, node_value) #, node_path, node_value
+
+        node_value[-1] = node_value[-1] / tree['shrinkage'] # 叶子节点增益还原
+
+        for i in range(0, len(node_path)):
+            feat_idx = node_path[i]
+            gain = node_value[i+1] - node_value[i]
+            feature_gain_dict[feat_idx] += gain
+
+        vvv[tree['tree_index'] % num_class] += leaf_value # * tree['shrinkage']
+
+    print feature_gain_dict.items(), sum(feature_gain_dict.values())
+    return vvv
+
+def sigmoid(v):
+  return 1.0 / (1 + math.exp(-v))
+
+if __name__ == '__main__':
+  modelName, trainFileName, testFileName = sys.argv[1], sys.argv[2], sys.argv[3]
+  gbm = lgb.Booster(model_file=modelName)
+
+  X_train, Y_train = load_svmlight_file(trainFileName, zero_based=True)
+  X_test, Y_test = load_svmlight_file(testFileName, zero_based=True)
+
+  # P_test = gbm.predict(X_test, pred_leaf=True)
+  P_test = gbm.predict(X_test)
+  # print P_test[0: 10]
+
+  # print Y_test.shape, P_test.shape
+  labels, orig_predictions = Y_test, P_test
+  auc = sklearn.metrics.roc_auc_score(y_true=labels, y_score=orig_predictions)
+  mae = sklearn.metrics.mean_absolute_error(y_true=labels, y_pred=orig_predictions)
+  logloss = sklearn.metrics.log_loss(y_true=labels, y_pred=orig_predictions)
+
+  print auc, logloss, mae
+
+  # 0.79321950613573444 1 1:5.7 2:2.8 3:4.1 4:1.3
+
+  with open('tree.info', 'w') as fp:
+    json.dump(gbm.dump_model(), fp)
+
+  mock_vec = [0, 5.7, 2.8, 4.1, 1.3]
+  score = predict(gbm, mock_vec)
+  print 'score:', score, 'prob:', sigmoid(score[0])
+
+  # from lime.lime_text import LimeTextExplainer
+  # explainer = LimeTextExplainer(class_names=['c0', 'c1'])
+  import lime.lime_tabular
+  # explainer = lime.lime_tabular.LimeTabularExplainer(X_train, feature_names=['f1', 'f2', 'f3', 'f4'], class_names=['c0', 'c1'], training_labels=Y_train)
+  # 'quartile', 'decile', 'entropy'
+  # explainer = lime.lime_tabular.LimeTabularExplainer(X_train, feature_names=['f1', 'f2', 'f3', 'f4'], class_names=['c0', 'c1'], discretize_continuous=False, training_labels=Y_train)
+  explainer = lime.lime_tabular.LimeTabularExplainer(X_train, feature_names=['-', 'f1', 'f2', 'f3', 'f4'], class_names=['c0', 'c1'], discretize_continuous=False)
+  # explainer = lime.lime_tabular.LimeTabularExplainer(X_train, class_names=['c0', 'c1'])
+
+  # exp = explainer.explain_instance(newsgroups_test.data[idx], c.predict_proba, num_features=6)
+  def limeExpProbFunc(vec):
+    score = predict(gbm, vec)
+    prob = sigmoid(score[0])
+    return np.array(1 - prob, prob)
+
+  print 'gbm predict:', gbm.predict(np.array([mock_vec]))
+  def limeExpProbFunc2(x):
+    prob = gbm.predict(x)
+    # prob = prob.tolist()
+
+    ret = np.array([1 - prob, prob]).T
+    # print ret
+    return ret
+
+  # print limeExpProbFunc2(mock_vec)
+  exp = explainer.explain_instance(np.array(mock_vec), limeExpProbFunc2, num_features=5)
+  print mock_vec
+  print exp.as_list()
