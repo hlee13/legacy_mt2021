@@ -1,0 +1,11 @@
+# py2
+ipython
+setuptools==39.1.0
+numpy==1.14.5
+pandas
+scipy
+matplotlib
+protobuf==3.6.0
+tensorflow==1.10
+cvxopt
+cvxpy==0.2.28
