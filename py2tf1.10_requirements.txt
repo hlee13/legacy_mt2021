@@ -6,6 +6,6 @@ pandas
 scipy
 matplotlib
 protobuf==3.6.0
-tensorflow==1.10
+# tensorflow==1.10
 cvxopt
 cvxpy==0.2.28
