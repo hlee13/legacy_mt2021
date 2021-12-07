@@ -1,1 +1,1 @@
-chrome ext: OCR - Image Reader
+chrome ext: OCR - Image Reader 、 Enhanced github
