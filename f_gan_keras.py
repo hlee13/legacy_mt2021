@@ -27,18 +27,19 @@ import random as rnd
 import scipy.stats
 
 print tf.__version__
+# zhihu: https://zhuanlan.zhihu.com/p/245566551
 
 batch = 200
 epoch = 1000
 steps_per_epoch = 1000
-act = 'selu'
-# act = 'elu'
+# act = 'selu'
+act = 'elu'
 # act = 'relu'
 
 max_value = 0.03
 
 dim_size = 8
-lr = 0.1
+lr = 0.01
 
 hidden_size = 32
 cate_size = 20
@@ -47,7 +48,8 @@ KL = True
 epsilon = 0.5
 
 # opt = tf.train.GradientDescentOptimizer(lr)
-opt = tf.train.RMSPropOptimizer(lr)
+# opt = tf.train.RMSPropOptimizer(lr)
+opt = tf.train.AdagradOptimizer(lr)
 # opt = tf.keras.optimizers.SGD(lr, clipnorm=0.01)
 # opt = tf.keras.optimizers.SGD(lr)
 
@@ -73,8 +75,8 @@ class LayerLoss(layers.Layer):
 
     def call(self, inputs):
       logits0, logits1 = inputs
-      return tf.reduce_mean(logits1) - tf.reduce_mean(logits0)
-      # return tf.reduce_mean(tf.exp(logits1-1.)) - tf.reduce_mean(logits0)
+      # return tf.reduce_mean(logits1) - tf.reduce_mean(logits0)
+      return tf.reduce_mean(tf.exp(logits1-1.)) - tf.reduce_mean(logits0)
       # return  tf.reduce_mean(logits0) - tf.reduce_mean(tf.exp(logits1-1))
 
 
@@ -131,11 +133,11 @@ def create_model():
 
   layer_embedding0 = layers.Embedding(cate_size, dim_size, name='embedding0', trainable=True)
 
-  layer_0 = layers.Dense(hidden_size, name='layer_0', activation=act, kernel_constraint=MinMaxNorm(min_value=-max_value, max_value=max_value), bias_constraint=MinMaxNorm(min_value=-max_value, max_value=max_value))
-  layer_1 = layers.Dense(hidden_size, name='layer_1', activation=act, kernel_constraint=MinMaxNorm(min_value=-max_value, max_value=max_value), bias_constraint=MinMaxNorm(min_value=-max_value, max_value=max_value))
-  layer_2 = layers.Dense(hidden_size, name='layer_2', activation=act, kernel_constraint=MinMaxNorm(min_value=-max_value, max_value=max_value), bias_constraint=MinMaxNorm(min_value=-max_value, max_value=max_value))
-  layer_3 = layers.Dense(hidden_size, name='layer_3', kernel_constraint=MinMaxNorm(min_value=-max_value, max_value=max_value), bias_constraint=MinMaxNorm(min_value=-max_value, max_value=max_value))
-  layer_4 = layers.Dense(1, name='layer_4', kernel_constraint=MinMaxNorm(min_value=-max_value, max_value=max_value), bias_constraint=MinMaxNorm(min_value=-max_value, max_value=max_value))
+  layer_0 = layers.Dense(hidden_size, name='layer_0', activation=act)
+  layer_1 = layers.Dense(hidden_size, name='layer_1', activation=act)
+  layer_2 = layers.Dense(hidden_size, name='layer_2', activation=act)
+  layer_3 = layers.Dense(hidden_size, name='layer_3')
+  layer_4 = layers.Dense(1, name='layer_4')
 
   layerloss = LayerLoss()
 
@@ -148,8 +150,8 @@ def create_model():
 
   loss = layerloss([logits0, logits1]) if KL else layerloss([logits1, logits0])
 
-  grad = K.gradients(logits0, feat0)[0]
-  print (grad.shape)
+  # grad = K.gradients(logits0, feat0)[0]
+  # print (grad.shape)
 
   # reg - gp
 
@@ -210,5 +212,4 @@ model.fit_generator(train_data,
 
 
 # print model.predict([np.array([[0],[1],[2]]), np.array([[0],[1],[2]]), ])
-
 
