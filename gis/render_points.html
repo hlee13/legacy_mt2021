@@ -1,0 +1,285 @@
+<!-- 重点参数：renderOptions -->
+<!doctype html>
+<html lang="zh-CN">
+
+<head>
+    <!-- 原始地址：//webapi.amap.com/ui/1.0/ui/misc/PointSimplifier/examples/adjust-topselect.html -->
+    <!-- <base href="//webapi.amap.com/ui/1.0/ui/misc/PointSimplifier/examples/" /> -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no, width=device-width">
+    <title>调整TopN选取</title>
+    <style>
+    html,
+    body {
+        width: 100%;
+        height: 100%;
+        margin: 0px;
+    }
+    
+    #outer-box {
+        height: 100%;
+        padding-right: 0px;
+    }
+    
+    #container {
+        height: 100%;
+        width: 100%;
+    }
+    
+    #panel {
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 280px;
+        z-index: 999;
+        height: calc(100% - 5px);
+        overflow: hidden;
+        overflow-y: auto;
+    }
+    
+    #my-gui-container {
+        height: 10px;
+    }
+    
+    #my-gui-container h3 {
+        margin: 1px 0 3px 0;
+    }
+    
+    #my-gui-container .close-button {
+        display: none;
+    }
+    
+    #my-gui-container .dg {
+        float: none;
+        margin: 0 0 5px 5px;
+    }
+    
+    #loadingTip {
+        position: absolute;
+        z-index: 9999;
+        top: 0;
+        left: 0;
+        padding: 3px 10px;
+        background: red;
+        color: #fff;
+        font-size: 13px;
+    }
+
+    #filename {
+        /* float: none; */
+        /* top: 100; */
+        /* position: absolute; */
+        /* left : 100; */
+        width: 75%;
+        margin: 0 0 8px 8px;
+        height: 0.5cm;
+    }
+    
+    .hide {
+        display: none;
+    }
+    </style>
+</head>
+
+<body>
+    <div id="outer-box">
+        
+        <div id="container">
+        </div>
+        <div id="panel">
+            <div id="my-gui-container"></div>
+
+            </br></br></br></br></br>
+            <input type="text" id="filename" placeholder="输入文件名" />
+        </div>
+    </div>
+    <script type="text/javascript" src='//webapi.amap.com/maps?v=1.4.15&key=您申请的key值&plugin=AMap.RangingTool'></script>
+    <script src="//webapi.amap.com/ui/1.0/ui/misc/PointSimplifier/examples/../../../../plug/ext/dat.gui.min.js?v=1.0.11"></script>
+    <!-- UI组件库 1.0 -->
+    <script src="//webapi.amap.com/ui/1.0/main.js?v=1.0.11"></script>
+    <script type="text/javascript">
+    //创建地图
+    var map = new AMap.Map('container', {
+        zoom: 10
+    });
+    function showInfoClick(e){
+        alert('您在 [ '+e.lnglat.getLng()+','+e.lnglat.getLat()+' ] 的位置单击了地图！');
+    }
+    // map.on('click', showInfoClick);
+
+    var ruler = new AMap.RangingTool(map);
+    ruler.turnOn();
+
+    AMapUI.load(['ui/misc/PointSimplifier', 'lib/$', 'lib/utils'], function(PointSimplifier, $, utils) {
+
+        if (!PointSimplifier.supportCanvas) {
+            alert('当前环境不支持 Canvas！');
+            return;
+        }
+
+        var pointSimplifierIns = new PointSimplifier({
+
+            zIndex: 300,
+            map: map,
+            //maxChildrenOfQuadNode:3,
+
+            getPosition: function(item) {
+
+                if (!item) {
+                    return null;
+                }
+
+                var parts = item.split(',');
+
+                return [parseFloat(parts[0]), parseFloat(parts[1])];
+            },
+            compareDataItem: function(a, b, aIndex, bIndex) {
+
+                return aIndex > bIndex ? 1 : -1;
+            },
+            getHoverTitle: function(dataItem, idx) {
+                var parts = dataItem.split(',');
+                if (parts.length == 2) {
+                    return '序号: ' + idx;
+                }
+
+                return parts[2];
+            },
+            autoSetFitView: false,
+            renderOptions: {
+                getAreaSizeForTopSelect: function(zoom, pointSize) {
+
+                    return Math.min(100, pointSize.width * pointSize.height * 1.5);
+                },
+                //topN选取的数量
+                getNumForTopSelect: function(zoom, bounds, descendantsNum, pointSize) {
+
+                    var idealNum = (bounds.width * bounds.height) / (pointSize.width * pointSize.height);
+
+                    return Math.max(3, Math.ceil(idealNum * 1.5));
+                }
+            }
+        });
+
+        window.pointSimplifierIns = pointSimplifierIns;
+        var customContainer = document.getElementById('my-gui-container');
+
+        function render() {
+
+            pointSimplifierIns.renderEngine.setOptions(renderEngParams);
+
+            pointSimplifierIns.renderEngine.setOptions({
+
+                getAreaSizeForTopSelect: function(zoom, pointSize) {
+
+                    return topSelectParams.topNAreaRadius * topSelectParams.topNAreaRadius;
+                },
+                //topN选取的数量
+                getNumForTopSelect: function(zoom, bounds, descendantsNum, pointSize) {
+
+                    return topSelectParams.topSelectNum;
+                }
+
+            });
+
+            pointSimplifierIns.renderLater();
+        }
+
+        function createRenderEngGui() {
+
+            function RenderEngOptions() {
+                this.drawQuadTree = false;
+                this.drawShadowPoint = false;
+            }
+
+            var renderEngParams = new RenderEngOptions();
+
+            var renderEngGui = new dat.GUI({
+                width: 260,
+                autoPlace: false,
+            });
+
+            renderEngGui.add(renderEngParams, 'drawQuadTree').onChange(render);
+            renderEngGui.add(renderEngParams, 'drawShadowPoint').onChange(render);
+
+            addGuiPanel('', '', renderEngGui);
+
+            return renderEngParams;
+        }
+
+        function createTopSelectGui() {
+
+            function TopSelectOptions() {
+                this.topNAreaRadius = 1;
+                this.topSelectNum = 1;
+            }
+
+            var topSelectParams = new TopSelectOptions();
+
+            var topSelectGui = new dat.GUI({
+                width: 260,
+                autoPlace: true,
+            });
+
+            topSelectGui.add(topSelectParams, 'topNAreaRadius', 2, 100).step(2).onChange(render);
+
+            topSelectGui.add(topSelectParams, 'topSelectNum', 0, 100).step(1).onChange(render);
+
+            addGuiPanel('', '', topSelectGui);
+
+            return topSelectParams;
+        }
+
+
+        function addGuiPanel(id, title, gui) {
+
+            var container = document.createElement('div');
+
+            container.id = id;
+
+            if (title) {
+                var tEle = document.createElement('h3');
+                tEle.innerHTML = title;
+                container.appendChild(tEle);
+            }
+
+            container.appendChild(gui.domElement);
+
+            customContainer.appendChild(container);
+        }
+
+        var renderEngParams = createRenderEngGui(),
+            topSelectParams = createTopSelectGui();
+
+        function renderByFile(filename) {
+            $('<div id="loadingTip">加载数据，请稍候...</div>').appendTo(document.body);
+            $.get(filename, function(csv) {
+
+                var data = csv.split('\n');
+                var parts = data[0].split(',');
+
+                map.panTo([parseFloat(parts[0]), parseFloat(parts[1])]);
+                
+                pointSimplifierIns.setData(data);
+
+                $('#loadingTip').remove();
+            });
+
+
+            render();
+        }
+        renderByFile('/notebooks/lnglat.csv');
+        // renderByFile('/mapRender/lnglat_tuan.csv');
+        // renderByFile('/mapRender/lnglat_t.csv');
+        // renderByFile('/mapRender/lnglat_a.csv');
+
+        $('#filename').bind('keypress', function(event) {
+            // alert($(this).val());
+            // if (event.keyCode == 13) renderByFile("/mapRender/" + $(this).val());
+            if (event.keyCode == 13) renderByFile("/" + $(this).val());
+        });
+    });
+    </script>
+</body>
+
+</html>
