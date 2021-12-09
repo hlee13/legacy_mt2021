@@ -1,1 +1,307 @@
+<!doctype html>
+<html lang="zh-CN">
 
+<head>
+  <!-- 原始地址：//webapi.amap.com/ui/1.0/ui/misc/PointSimplifier/examples/adjust-topselect.html -->
+  <meta charset="utf-8">
+  <meta name="viewport" content="initial-scale=1.0, user-scalable=no, width=device-width">
+  <title>geoHexRender</title>
+  <style>
+    html,
+    body {
+        width: 100%;
+        height: 100%;
+        margin: 0px;
+    }
+    
+    #outer-box {
+        height: 100%;
+        padding-right: 0px;
+    }
+    
+    #container {
+        height: 100%;
+        width: 100%;
+    }
+    
+    #panel {
+        position: absolute;
+        top: 30%;
+        right: 0;
+        width: 300px;
+        z-index: 999;
+        height: calc(100% - 5px);
+        overflow: hidden;
+        overflow-y: auto;
+    }
+    
+    #my-gui-container {
+        height: 100px;
+    }
+    
+    #my-gui-container h3 {
+        margin: 1px 0 3px 0;
+    }
+    
+    #my-gui-container .close-button {
+        display: none;
+    }
+    
+    #my-gui-container .dg {
+        float: none;
+        margin: 0 0 5px 5px;
+    }
+    
+    #loadingTip {
+        position: absolute;
+        z-index: 9999;
+        top: 0;
+        left: 0;
+        padding: 3px 10px;
+        background: red;
+        color: #fff;
+        font-size: 13px;
+    }
+
+    #infoWindow {
+        position: absolute;
+        z-index: 9999;
+        top: 0;
+        left: 0;
+        padding: 3px 10px;
+        background: rgb(0, 0, 0);
+        color: rgb(225, 255, 255);
+        font-size: 13px;
+        opacity: 0.6;
+    }
+    
+    .hide {
+        display: none;
+    }
+    </style>
+</head>
+
+<body>
+  <div id="outer-box">
+    <div id="container">
+    </div>
+
+    <div id="panel">
+      <div id="my-gui-container"></div>
+
+      <input type="text" id="filename" placeholder="文件名" />
+      <textarea id="hexList" name="hexList" >输入HexIDs</textarea>
+    </div>
+  </div>
+  <script type="text/javascript" src='//webapi.amap.com/maps?v=1.4.15&key=您申请的key值&plugin=AMap.AdvancedInfoWindow'></script>
+  <script type="text/javascript" src="https://a.amap.com/jsapi_demos/static/demo-center/data/food_1.4.15.js"></script>
+  <script src="//webapi.amap.com/ui/1.0/ui/misc/PointSimplifier/examples/../../../../plug/ext/dat.gui.min.js?v=1.0.11"></script>
+  <!-- UI组件库 1.0 -->
+  <script src="//webapi.amap.com/ui/1.0/main.js?v=1.0.11"></script>
+  <script type="text/javascript">
+  function groupBy( array , f , index_f) {
+      let groups = {};
+      array.forEach( function( o ) {
+          let group = f(o);
+
+          if (index_f === undefined) {
+            groups[group] = groups[group] || [];
+            groups[group].push( o );
+          } else {
+            groups[group] = groups[group] || {};
+
+            // groups[group][index_f(o)] = groups[group][index_f(o)] || [];
+            if (groups[group][index_f(o)] === undefined) {
+              groups[group][index_f(o)] = o;
+            } else {
+              let old = groups[group][index_f(o)];
+
+              groups[group][index_f(o)] = [];
+              groups[group][index_f(o)].push(old);
+              groups[group][index_f(o)].push(o);
+            }
+
+            
+          }
+      });
+      
+      return groups;
+  }
+
+    //创建地图
+    var map = new AMap.Map('container', {
+      zoom: 12
+    });
+
+    var layer = new AMap.LabelsLayer({
+        zooms: [3, 20],
+        zIndex: 1000,
+        // 开启标注避让，默认为开启，v1.4.15 新增属性
+        // collision: true,
+        // 开启标注淡入动画，默认为开启，v1.4.15 新增属性
+        // animation: true,
+    });
+    
+
+    function parsePoint(pointStr) {
+      var lngLatStr = pointStr.split(',');
+      var lng = parseFloat(lngLatStr[0]);
+      var lat = parseFloat(lngLatStr[1]);
+      return new AMap.LngLat(lng, lat);
+    }
+
+    function array2Point(arr) {
+      // var lng = parseFloat(arr[0]);
+      // var lat = parseFloat(arr[1]);
+      var lng = arr[0];
+      var lat = arr[1];
+      return new AMap.LngLat(lng, lat);
+    }
+
+    function parseHexPath(geoHexStr) {
+      var polygonPath = new Array();
+
+      var pointStr = geoHexStr.split(';');
+      for (var j = 0; j < pointStr.length; j++) {
+        polygonPath.push(parsePoint(pointStr[j]));
+      }
+
+      return polygonPath;
+    }
+
+    function array2Poly(arr) {
+      var polygonPath = new Array();
+
+      for (var j = 0; j < arr.length; j++) {
+        polygonPath.push(array2Point(arr[j]));
+      }
+
+      return polygonPath;
+    }
+
+    String.prototype.format = function () {
+      var args = arguments;
+      return this.replace(/\{(\d+)\}/g, function(m, i){
+          return args[i];
+      });
+    };
+
+    function drawGeoHex2(geoHexPath) {
+      var polygon = new AMap.Polyline({
+        path: geoHexPath,
+        borderWeight: 2, // 线条宽度，默认为 1
+        strokeColor: '#000000', // 线条颜色
+        strokeOpacity: 0.3, // 线条透明
+        lineJoin: 'round' // 折线拐点连接处样式
+      });
+      map.add(polygon);
+    }
+
+    function drawGeoHex(geoHexPath, geoHexCode, center, extraInfo, color) {
+      var path = geoHexPath;
+
+      var polygon = new AMap.Polygon({
+        path: path,
+        fillColor: color,
+        // fillColor: '#3DB9AC', // 多边形填充颜色
+        fillOpacity: 0.4,
+        borderWeight: 1, // 线条宽度，默认为 1
+        strokeColor: '#FFFFFF', // 线条颜色
+        strokeOpacity: 0.3, // 线条透明
+        extData: extraInfo
+      });
+
+      polygon.on('click', function (evt) {
+        alert(geoHexCode);
+      });
+
+      polygon.on('mouseover', function (evt) {
+        $('#infoWindow').remove();
+        $('<div id="infoWindow">' + this.getExtData() + '</div>').appendTo(document.body);
+        // setTimeout(function () { $('#infoWindow').remove(); }, 30 * 1000);
+      });
+
+      // var marker = new AMap.LabelMarker({
+      //   position: [116.466994, 39.984904],
+      //   text:{"context":"wwwwwwwwwww"}
+      //   });
+
+      //   map.add(layer);
+      // layer.add(marker);
+      
+
+      map.add(polygon);
+    }
+
+    AMapUI.load(['lib/$', 'lib/utils'], function ($, utils) {
+      var polys = new Array();
+      function renderByFile(filename) {
+        $('<div id="loadingTip">加载数据，请稍候...</div>').appendTo(document.body);
+        $.get(filename, function (data) {
+        data_json = JSON.parse(data);
+
+      // def gray2color(gray):
+      //   if gray < 0.5: #00FFFF -> #00FF00
+      //       gray = 1-gray*2
+      //       return 'rgb(0, 255, {0})'.format(int(gray*255))
+      //   else: #FFFF00 -> #FF0000
+      //       gray=(1-gray)*2        
+      //       return 'rgb(255, {0}, 0)'.format(int(gray*255))
+
+        // [{"HexID":"", "center":[lng, lat], "polygeo":[[lng, lat],...], "color": "", "desc": ["", ""]}, {...}]
+        for (let ix in data_json) {
+          var obj = data_json[ix];
+
+          hexhashid = obj['HexID'];
+          if (hexhashid === "") {
+            console.log('HEX: ' + obj)
+            continue;
+          }
+
+          center = parsePoint(obj['center']);
+          polygon = parseHexPath(obj['polygeo']);
+          desc = obj['desc'];
+
+          polys[hexhashid] = polygon;
+          // drawGeoHex(polygon, hexhashid, center, hexhashid + ' '+ obj['center'].join(',') + '</br>' + desc.join('</br>'), obj['color']);
+          drawGeoHex(polygon, hexhashid, center, hexhashid + ' '+ obj['center'] + '</br>' + desc.join('</br>'), obj['color']);
+
+          if (ix == 0) {
+            map.panTo(center);
+          }
+        }
+
+        $('#loadingTip').remove();
+      });
+
+      }
+
+      var filename = $('#filename').val() || '/notebooks/city_55_json';
+      renderByFile(filename);
+      $('#filename').bind('keypress', function(event) {
+        // var filename = $(this).val();
+        // var filename = $(this).val() || '/notebooks/data_json';
+        var filename = $(this).val() || '/notebooks/city_55_json';
+        renderByFile(filename);
+      });
+
+      $('#hexList').bind('keypress', function(event) {
+            // alert($(this).val());
+            // if (event.keyCode == 13) renderByFile("/mapRender/" + $(this).val());
+            if ((event.ctrlKey || event.metaKey) && (event.keyCode == 13)) {
+              // alert($(this).val());
+              var hexIds = $(this).val();
+              var hexIdList = hexIds.split(/,| |:|\n/);
+
+              for (let ix in hexIdList) {
+                drawGeoHex2(polys[hexIdList[ix]]);
+              }
+            }
+        });
+        
+    });
+    
+  </script>
+</body>
+
+</html>
