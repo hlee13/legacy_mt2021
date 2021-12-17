@@ -13,3 +13,8 @@ https://towardsdatascience.com/algorithmic-game-theory-with-nashpy-a73caf14296b
 
 https://nashpy.readthedocs.io/en/stable/discussion/other-python-game-theory-libraries.html    
 https://nashpy.readthedocs.io/en/stable/tutorial/% 
+
+
+# Time Series
+DeepAR
+GluonTS
