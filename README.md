@@ -18,3 +18,6 @@ https://nashpy.readthedocs.io/en/stable/tutorial/%
 # Time Series
 DeepAR
 GluonTS
+
+# math vis
+manim
