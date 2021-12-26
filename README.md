@@ -1,9 +1,24 @@
+# ml env
+<!-- With pip -->
+pip install ipywidgets
+jupyter nbextension enable --py widgetsnbextension
+<!-- With conda -->
+conda install -c conda-forge ipywidgets
+
+pip install jupyter_contrib_nbextensions
+pip install jupyter_nbextensions_configurator
+jupyter contrib nbextension install --user
+jupyter nbextensions_configurator enable --user
+
+# cpp lib
 .libevent .muduo .boost .thrift .protobuf .glog .libconfig .geos .libsvm .curl .json-cpp .opencv .openblas .libconhash .liblog4cplus .mysql .hiredis .memcache .ffmpeg .yasm
 
 chrome ext: OCR - Image Reader 、 Enhanced github
 
+# amap
 https://lbs.amap.com/demo-center/js-api
 
+# leetcode
 https://github.com/zhuli19901106/leetcode-zhuli
 
 
