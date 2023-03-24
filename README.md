@@ -38,3 +38,6 @@ GluonTS
 
 # math vis
 manim
+
+# QGIS tiles map
+http://wprd01.is.autonavi.com/appmaptile?x={x}&y={y}&z={z}&lang=zh_cn&size=1&scl=1&style=1=7&ltype=6
